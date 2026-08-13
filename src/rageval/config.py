@@ -14,20 +14,32 @@ INDEX_DIR = REPO_ROOT / ".index"
 
 @dataclass(frozen=True)
 class Config:
-    embedding_backend: str = os.getenv("EMBEDDING_BACKEND", "tfidf")
-    rerank_backend: str = os.getenv("RERANK_BACKEND", "bm25")
-    vector_store: str = os.getenv("VECTOR_STORE", "numpy")
+    embedding_backend: str = "tfidf"
+    rerank_backend: str = "bm25"
+    vector_store: str = "numpy"
 
-    chunk_size: int = int(os.getenv("CHUNK_SIZE", "600"))
-    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "100"))
+    chunk_size: int = 600
+    chunk_overlap: int = 100
 
-    top_k: int = int(os.getenv("TOP_K", "10"))       # candidates from vector search
-    final_k: int = int(os.getenv("FINAL_K", "4"))    # kept after rerank
+    top_k: int = 10   # candidates from vector search
+    final_k: int = 4  # kept after rerank
 
-    cohere_api_key: str | None = os.getenv("COHERE_API_KEY") or None
-    openai_api_key: str | None = os.getenv("OPENAI_API_KEY") or None
-    pinecone_api_key: str | None = os.getenv("PINECONE_API_KEY") or None
+    cohere_api_key: str | None = None
+    openai_api_key: str | None = None
+    pinecone_api_key: str | None = None
 
 
 def load_config() -> Config:
-    return Config()
+    """Build config from the environment at call time (not import time)."""
+    return Config(
+        embedding_backend=os.getenv("EMBEDDING_BACKEND", "tfidf"),
+        rerank_backend=os.getenv("RERANK_BACKEND", "bm25"),
+        vector_store=os.getenv("VECTOR_STORE", "numpy"),
+        chunk_size=int(os.getenv("CHUNK_SIZE", "600")),
+        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "100")),
+        top_k=int(os.getenv("TOP_K", "10")),
+        final_k=int(os.getenv("FINAL_K", "4")),
+        cohere_api_key=os.getenv("COHERE_API_KEY") or None,
+        openai_api_key=os.getenv("OPENAI_API_KEY") or None,
+        pinecone_api_key=os.getenv("PINECONE_API_KEY") or None,
+    )
