@@ -23,36 +23,39 @@ def _normalize(text: str) -> str:
 
 
 def chunk_text(text: str, doc_id: str, chunk_size: int, overlap: int) -> list[Chunk]:
-    """Split on word boundaries into ~chunk_size-char windows with overlap.
+    """Sliding window over words, ~chunk_size characters per window with overlap.
 
-    Chunk ids are content-addressed (doc_id + ordinal + a short content hash) so
-    they are stable across runs but change if the underlying text changes -- which
-    is exactly what you want so a stale golden set fails loudly.
+    Chunk ids are content-addressed (doc_id + ordinal + short content hash): stable
+    across runs, but they change if the text changes -- so a stale golden set fails
+    loudly instead of silently pointing at the wrong chunk.
     """
     words = _normalize(text).split(" ")
+    if words == [""]:
+        return []
+
+    # Group words into windows of roughly chunk_size characters.
+    windows: list[list[str]] = []
+    cur: list[str] = []
+    length = 0
+    for w in words:
+        if cur and length + len(w) + 1 > chunk_size:
+            windows.append(cur)
+            cur, length = [], 0
+        cur.append(w)
+        length += len(w) + 1
+    if cur:
+        windows.append(cur)
+
+    # Apply overlap by carrying trailing words of each window into the next.
+    overlap_words = max(0, overlap // 6)  # ~6 chars/word heuristic
     chunks: list[Chunk] = []
-    step = max(1, chunk_size - overlap)
-    ordinal = 0
-    i = 0
-    # Build by characters but respect word boundaries.
-    while i < len(words):
-        cur: list[str] = []
-        length = 0
-        j = i
-        while j < len(words) and length + len(words[j]) + 1 <= chunk_size:
-            cur.append(words[j])
-            length += len(words[j]) + 1
-            j += 1
-        if not cur:  # single very long word
-            cur = [words[i]]
-            j = i + 1
-        body = " ".join(cur)
+    prev_tail: list[str] = []
+    for ordinal, win in enumerate(windows):
+        body_words = prev_tail + win
+        body = " ".join(body_words)
         digest = hashlib.sha1(body.encode("utf-8")).hexdigest()[:8]
         chunks.append(Chunk(id=f"{doc_id}::{ordinal}::{digest}", doc_id=doc_id, text=body, ordinal=ordinal))
-        ordinal += 1
-        # advance by step words
-        advance = max(1, min(len(cur), step // max(1, chunk_size // max(1, len(cur)))))
-        i += advance if advance < (j - i) else (j - i)
+        prev_tail = win[-overlap_words:] if overlap_words else []
     return chunks
 
 
