@@ -11,6 +11,7 @@ from .chunking import Chunk, load_corpus
 from .config import CORPUS_DIR, Config
 from .embeddings import build_embedder
 from .generate import build_generator
+from .rerank import build_reranker
 from .vectorstore import Hit, build_store
 
 
@@ -26,6 +27,7 @@ class RAGPipeline:
         self.config = config
         self.embedder = build_embedder(config.embedding_backend)
         self.store = build_store(config.vector_store)
+        self.reranker = build_reranker(config.rerank_backend, cohere_api_key=config.cohere_api_key)
         self.generator = build_generator(config.openai_api_key)
 
     def index(self, chunks: list[Chunk]) -> None:
@@ -39,7 +41,8 @@ class RAGPipeline:
 
     def retrieve(self, question: str) -> list[Hit]:
         qv = self.embedder.embed_query(question)
-        return self.store.search(qv, self.config.top_k)[: self.config.final_k]
+        candidates = self.store.search(qv, self.config.top_k)  # over-retrieve
+        return self.reranker.rerank(question, candidates, self.config.final_k)
 
     def answer(self, question: str) -> RAGAnswer:
         hits = self.retrieve(question)
