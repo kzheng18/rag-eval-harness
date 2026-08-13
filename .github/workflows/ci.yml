@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install (offline backends only)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Retrieval eval (fails the build on quality regression)
+        env:
+          EMBEDDING_BACKEND: tfidf
+          RERANK_BACKEND: bm25
+          VECTOR_STORE: numpy
+        run: python -m eval.retrieval_eval
+
+  # Generation-quality evals call an LLM judge, so they only run when a key is
+  # present (e.g. on main). They never block a PR from a fork.
+  generation-eval:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install with eval + provider extras
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,evals,providers]"
+      - name: Generation eval (skips cleanly if no key)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+        run: python -m eval.generation_eval
