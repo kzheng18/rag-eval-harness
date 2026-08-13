@@ -1,0 +1,6 @@
+# Quality floor enforced in CI. Set just below current measured performance so a
+# real regression trips the build, without being so tight that noise fails it.
+retrieval:
+  k: 5
+  min_hit_at_k: 0.80
+  min_mrr: 0.60
