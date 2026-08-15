@@ -1,16 +1,16 @@
-{"question": "Why can I use a dot product instead of cosine similarity for my text vectors?", "doc_id": "embeddings", "needle": "Normalizing vectors to unit length lets you use a plain dot product"}
-{"question": "Why does dense vector search do badly on queries about a rare code symbol?", "doc_id": "embeddings", "needle": "rare token is averaged away"}
-{"question": "What index type speeds up nearest neighbor search without scanning every vector?", "doc_id": "vector_databases", "needle": "Approximate nearest neighbor indexes such as HNSW"}
-{"question": "Why might vector search return a passage from the wrong document that shares words with my query?", "doc_id": "vector_databases", "needle": "the index only knows about geometry"}
-{"question": "How does a cross-encoder score a query and passage together?", "doc_id": "reranking", "needle": "A cross-encoder reranker concatenates the query and a candidate passage"}
-{"question": "What is the practical recipe for combining vector search with a reranker?", "doc_id": "reranking", "needle": "over-retrieve with cheap vector search, then rerank the top candidates"}
-{"question": "Which retrieval metric improves the most when I turn on reranking?", "doc_id": "reranking", "needle": "turning on reranking is the change that moves mean reciprocal rank the most"}
-{"question": "Why does overlap between chunks help answer questions?", "doc_id": "chunking", "needle": "Overlap between adjacent chunks reduces the chance"}
-{"question": "How do I keep my evaluation set from silently pointing at the wrong passage after re-indexing?", "doc_id": "chunking", "needle": "Content-addressed ids that change only when the text changes"}
-{"question": "What does mean reciprocal rank reward compared to hit at k?", "doc_id": "evaluation", "needle": "Mean reciprocal rank is stricter"}
-{"question": "Which metrics use a language model as a judge to check grounding?", "doc_id": "evaluation", "needle": "faithfulness and answer relevancy"}
-{"question": "What happens in CI when retrieval quality drops below the threshold?", "doc_id": "evaluation", "needle": "fails the pipeline the same way a broken unit test does"}
-{"question": "How do I avoid re-embedding chunks that have not changed?", "doc_id": "caching", "needle": "An embedding cache keyed by the hash of the input text"}
-{"question": "How should I invalidate cached responses when the corpus changes?", "doc_id": "caching", "needle": "Cache invalidation should be tied to the index version"}
-{"question": "What is it called when a malicious document in the corpus hijacks the model?", "doc_id": "prompt_injection", "needle": "prompt injection via retrieval"}
-{"question": "How can my eval harness catch a regression in handling malicious context?", "doc_id": "prompt_injection", "needle": "include adversarial passages in your test corpus"}
+{"question": "If my passages are already unit length, what cheaper operation gives me the same ranking as cosine?", "doc_id": "embeddings", "needle": "Normalizing vectors to unit length lets you use a plain dot product"}
+{"question": "Why do meaning-based vectors struggle when a search hinges on one unusual identifier?", "doc_id": "embeddings", "needle": "rare token is averaged away"}
+{"question": "What structure lets me skip comparing against every stored point when finding neighbors?", "doc_id": "vector_databases", "needle": "Approximate nearest neighbor indexes such as HNSW"}
+{"question": "Why would a lookalike passage from an unrelated file rank highly?", "doc_id": "vector_databases", "needle": "the index only knows about geometry"}
+{"question": "How does a joint model judge a question against one candidate at a time?", "doc_id": "reranking", "needle": "A cross-encoder reranker concatenates the query and a candidate passage"}
+{"question": "What is the standard two-stage flow for cheap recall then precise ordering?", "doc_id": "reranking", "needle": "over-retrieve with cheap vector search, then rerank the top candidates"}
+{"question": "Which ordering score climbs the most once I add a second-stage scorer?", "doc_id": "reranking", "needle": "turning on reranking is the change that moves mean reciprocal rank the most"}
+{"question": "Why leave a bit of shared text between neighboring passages?", "doc_id": "chunking", "needle": "Overlap between adjacent chunks reduces the chance"}
+{"question": "How do I make my test set fail loudly instead of drifting after I rebuild the index?", "doc_id": "chunking", "needle": "Content-addressed ids that change only when the text changes"}
+{"question": "Which score cares about position near the top, not just presence in the list?", "doc_id": "evaluation", "needle": "Mean reciprocal rank is stricter"}
+{"question": "What quality checks rely on a model to decide if an answer is grounded?", "doc_id": "evaluation", "needle": "faithfulness and answer relevancy"}
+{"question": "What is the effect of a quality drop on the build once this is wired into automation?", "doc_id": "evaluation", "needle": "fails the pipeline the same way a broken unit test does"}
+{"question": "How do I skip recomputing vectors for documents I did not touch?", "doc_id": "caching", "needle": "An embedding cache keyed by the hash of the input text"}
+{"question": "What should trigger clearing a stored answer after the underlying documents shift?", "doc_id": "caching", "needle": "Cache invalidation should be tied to the index version"}
+{"question": "What do you call an attack that rides in through your own knowledge base?", "doc_id": "prompt_injection", "needle": "prompt injection via retrieval"}
+{"question": "How do I make sure my tests would notice if handling of hostile passages broke?", "doc_id": "prompt_injection", "needle": "include adversarial passages in your test corpus"}
