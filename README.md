@@ -22,12 +22,38 @@ Two layers of evaluation:
    (faithfulness, answer relevancy, context precision) over the same golden set,
    run when an LLM judge is available.
 
+## Hybrid retrieval (dense + lexical)
+
+Reranking can only reorder the candidates dense vector search already returned. If the
+right chunk never makes that pool -- the classic failure where a rare, discriminating
+token (an error code, a symbol, an exact name) gets averaged away in the pooled
+embedding -- no reranker can recover it.
+
+`RETRIEVAL_MODE=hybrid` adds the missing half: a BM25 index over the *whole* corpus
+retrieves on exact term overlap, and its ranking is fused with the dense ranking using
+Reciprocal Rank Fusion (RRF), which combines by position rather than by raw score so
+cosine similarities and BM25 scores never have to be made commensurable. The fused pool
+then feeds the same reranker.
+
+```bash
+RETRIEVAL_MODE=hybrid python -m eval.retrieval_eval
+```
+
+It is off by default so `dense` stays the measured baseline. On the paraphrased golden
+set -- where questions deliberately avoid reusing passage wording -- turning it on lifts
+offline hit@5 from 0.938 to 1.000 and MRR from 0.646 to 0.729 (see `eval/RESULTS.md`),
+because the full-corpus BM25 index reaches chunks carrying the exact needle term that
+the paraphrased query pulls the dense vector away from. The gain grows on dense
+embeddings (`sentence-transformers`), whose rare-token blind spot is sharper than
+TF-IDF's. The fusion mechanism itself is regression-tested in `tests/test_hybrid.py`.
+
 ## Architecture
 
 ```
 query
   -> embed            (TF-IDF offline  |  sentence-transformers)
-  -> vector search    (numpy cosine    |  Chroma  |  Pinecone)
+  -> retrieve         dense vector search (numpy cosine | Chroma | Pinecone)
+                      + optional hybrid: fuse with full-corpus lexical BM25 (RRF)
   -> rerank           (BM25 offline    |  Cohere  |  cross-encoder)
   -> generate         (extractive stub |  OpenAI / Cohere)
   -> answer + cited context
@@ -62,7 +88,7 @@ measured effect of reranking.
 ## Layout
 
 ```
-src/rageval/     pipeline: chunking, embeddings, vector store, rerank, generate, api
+src/rageval/     pipeline: chunking, embeddings, vector store, lexical+RRF, rerank, generate, api
 data/corpus/     sample knowledge base
 data/golden.jsonl  evaluation set: questions + relevant chunk ids
 eval/            retrieval + generation eval harness and thresholds

@@ -5,9 +5,9 @@
 Reproducible with no API keys on a 7-document corpus and a 16-question golden set:
 
 ```
-retrieval eval  (n=16, k=5, rerank=bm25)
+retrieval eval  (n=16, k=5, mode=dense, rerank=bm25)
   baseline   hit@k=0.875  MRR=0.644
-  reranked   hit@k=0.938  MRR=0.656   (dMRR=+0.012)
+  reranked   hit@k=0.938  MRR=0.646   (dMRR=+0.001)
   floor      hit@k>=0.80  MRR>=0.60
 PASS
 ```
@@ -23,12 +23,30 @@ python -m eval.retrieval_eval
 
 - **hit@5** is whether the correct chunk appears in the top 5; **MRR** rewards putting
   it near the top, so MRR is the metric that moves when ordering improves.
-- Reranking lifts hit@5 and gives a small MRR gain *on the offline lexical path*. The
-  effect is modest here because BM25 and TF-IDF share a lexical signal. The larger win
-  comes from a model-based reranker on dense embeddings (below), which is the case the
-  offline path stands in for during CI.
+- The golden questions are paraphrased so they do *not* reuse the wording of the
+  passages they target -- a realistic test, and a hard one for a lexical embedder.
+  Reranking alone barely helps here (dMRR=+0.001): BM25 can only reorder the candidates
+  TF-IDF already returned, and it shares TF-IDF's blind spots.
 - The thresholds in `thresholds.yaml` sit just under current performance, so a real
   regression fails CI while normal noise does not.
+
+### Hybrid retrieval closes the gap
+
+```
+retrieval eval  (n=16, k=5, mode=hybrid, rerank=bm25)
+  baseline   hit@k=0.875  MRR=0.644
+  reranked   hit@k=1.000  MRR=0.729   (dMRR=+0.085)
+  floor      hit@k>=0.80  MRR>=0.60
+PASS
+```
+
+`RETRIEVAL_MODE=hybrid` adds a BM25 index over the *whole* corpus and fuses its ranking
+with dense search via Reciprocal Rank Fusion before reranking. On this paraphrased set
+it lifts hit@5 from 0.938 to a perfect 1.000 and MRR from 0.646 to 0.729 (+0.085 over
+the dense baseline) -- a real gain, not noise, because the full-corpus lexical index
+reaches chunks that carry the exact needle term even when the paraphrased query has
+pulled the dense vector away from them. Reranking could never recover those: it only
+reorders what dense already found. The mechanism is pinned by `tests/test_hybrid.py`.
 
 ## Retrieval (dense: sentence-transformers + Cohere rerank)
 
