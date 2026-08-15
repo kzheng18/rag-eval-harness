@@ -1,7 +1,12 @@
 """Offline retrieval evaluation. Scores hit@k and MRR over the golden set, both for
-raw vector search (baseline) and after reranking, and fails (exit 1) if the reranked
-numbers fall below the thresholds in eval/thresholds.yaml -- or if reranking makes
-things worse.
+raw vector search (baseline) and after the configured retrieval + rerank path, and
+fails (exit 1) if the final numbers fall below the thresholds in eval/thresholds.yaml
+-- or if the pipeline ends up worse than the raw-vector baseline.
+
+Baseline is always pure dense vector search. The "reranked" row reflects whatever
+RETRIEVAL_MODE is set to: with "dense" it is rerank over the dense pool; with "hybrid"
+it is rerank over the RRF-fused dense+lexical pool, so the measured effect of hybrid
+search shows up right here in CI.
 
 Runs with no API keys and no heavy models (tfidf + bm25), so it gates every push.
 """
@@ -13,11 +18,8 @@ from pathlib import Path
 import yaml
 
 from eval.common import hit_at_k, load_golden, reciprocal_rank, resolve_gold_ids
-from rageval.chunking import load_corpus
-from rageval.config import CORPUS_DIR, load_config
-from rageval.embeddings import build_embedder
-from rageval.rerank import build_reranker
-from rageval.vectorstore import build_store
+from rageval.config import load_config
+from rageval.pipeline import RAGPipeline
 
 THRESHOLDS_PATH = Path(__file__).resolve().parent / "thresholds.yaml"
 
@@ -33,20 +35,20 @@ def evaluate() -> dict:
     thresholds = yaml.safe_load(THRESHOLDS_PATH.read_text(encoding="utf-8"))["retrieval"]
     k = int(thresholds["k"])
 
-    chunks = load_corpus(CORPUS_DIR, config.chunk_size, config.chunk_overlap)
-    embedder = build_embedder(config.embedding_backend)
-    store = build_store(config.vector_store)
-    store.add(chunks, embedder.embed_documents([c.text for c in chunks]))
-    reranker = build_reranker(config.rerank_backend, cohere_api_key=config.cohere_api_key)
+    pipeline = RAGPipeline(config)
+    chunks = pipeline.index_corpus()
 
     golden = load_golden()
     gold_per_q = [resolve_gold_ids(it, chunks) for it in golden]
 
     base_ids, rr_ids = [], []
     for it in golden:
-        candidates = store.search(embedder.embed_query(it.question), config.top_k)
-        base_ids.append([h.chunk.id for h in candidates])
-        reranked = reranker.rerank(it.question, candidates, config.top_k)
+        # Baseline is always pure dense search, regardless of retrieval_mode.
+        dense = pipeline.store.search(pipeline.embedder.embed_query(it.question), config.top_k)
+        base_ids.append([h.chunk.id for h in dense])
+        # The pipeline path: hybrid fusion (if enabled) then rerank.
+        candidates = pipeline._candidates(it.question)
+        reranked = pipeline.reranker.rerank(it.question, candidates, config.top_k)
         rr_ids.append([h.chunk.id for h in reranked])
 
     base_hit, base_mrr = _score(base_ids, gold_per_q, k)
@@ -55,6 +57,7 @@ def evaluate() -> dict:
     return {
         "n": len(golden),
         "k": k,
+        "retrieval_mode": config.retrieval_mode,
         "rerank_backend": config.rerank_backend,
         "baseline": {"hit_at_k": base_hit, "mrr": base_mrr},
         "reranked": {"hit_at_k": rr_hit, "mrr": rr_mrr},
@@ -66,7 +69,8 @@ def evaluate() -> dict:
 def main() -> int:
     m = evaluate()
     b, r = m["baseline"], m["reranked"]
-    print(f"retrieval eval  (n={m['n']}, k={m['k']}, rerank={m['rerank_backend']})")
+    print(f"retrieval eval  (n={m['n']}, k={m['k']}, "
+          f"mode={m['retrieval_mode']}, rerank={m['rerank_backend']})")
     print(f"  baseline   hit@k={b['hit_at_k']:.3f}  MRR={b['mrr']:.3f}")
     print(f"  reranked   hit@k={r['hit_at_k']:.3f}  MRR={r['mrr']:.3f}   "
           f"(dMRR={r['mrr'] - b['mrr']:+.3f})")
