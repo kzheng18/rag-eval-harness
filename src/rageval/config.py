@@ -17,12 +17,14 @@ class Config:
     embedding_backend: str = "tfidf"
     rerank_backend: str = "bm25"
     vector_store: str = "numpy"
+    retrieval_mode: str = "dense"  # "dense" | "hybrid" (dense + lexical RRF)
 
     chunk_size: int = 600
     chunk_overlap: int = 100
 
-    top_k: int = 10   # candidates from vector search
+    top_k: int = 10   # candidates from each retriever (vector, and lexical in hybrid)
     final_k: int = 4  # kept after rerank
+    rrf_k: int = 60   # RRF damping constant used when retrieval_mode="hybrid"
 
     cohere_api_key: str | None = None
     openai_api_key: str | None = None
@@ -35,10 +37,12 @@ def load_config() -> Config:
         embedding_backend=os.getenv("EMBEDDING_BACKEND", "tfidf"),
         rerank_backend=os.getenv("RERANK_BACKEND", "bm25"),
         vector_store=os.getenv("VECTOR_STORE", "numpy"),
+        retrieval_mode=os.getenv("RETRIEVAL_MODE", "dense"),
         chunk_size=int(os.getenv("CHUNK_SIZE", "600")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "100")),
         top_k=int(os.getenv("TOP_K", "10")),
         final_k=int(os.getenv("FINAL_K", "4")),
+        rrf_k=int(os.getenv("RRF_K", "60")),
         cohere_api_key=os.getenv("COHERE_API_KEY") or None,
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
         pinecone_api_key=os.getenv("PINECONE_API_KEY") or None,
